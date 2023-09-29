@@ -69,7 +69,8 @@ class Plugin(BasePlugin):
         }
 
         if "sheet_name" not in target_output_config:
-            target_output_config["sheet_name"] = target_config.relation.identifier
+            # Excel sheet name is limited to 31 characters
+            target_output_config["sheet_name"] = target_config.relation.identifier[0:31]
 
         df = pd_utils.target_to_df(target_config)
         df.to_excel(
