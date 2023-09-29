@@ -11,6 +11,7 @@ from . import pd_utils
 from ..utils import SourceConfig
 from ..utils import TargetConfig
 from dbt.logger import GLOBAL_LOGGER as logger
+from threading import Lock
 
 
 class Plugin(BasePlugin):
@@ -18,6 +19,7 @@ class Plugin(BasePlugin):
         self._config = plugin_config
 
         if "output" in plugin_config:
+            self._excel_writer_create_lock = Lock()
             assert isinstance(plugin_config["output"], dict)
             assert "file" in plugin_config["output"]
 
@@ -48,16 +50,18 @@ class Plugin(BasePlugin):
         # with mode = 'w', this would result in an existing file getting
         # overwritten. This can happen if dbt test is executed for example.
         if not hasattr(self, "_excel_writer"):
-            self._excel_writer = pd.ExcelWriter(
-                plugin_output_config["file"],
-                mode=plugin_output_config.get("mode", "w"),
-                engine=plugin_output_config.get("engine", "xlsxwriter"),
-                engine_kwargs=plugin_output_config.get("engine_kwargs", {}),
-                date_format=plugin_output_config.get("date_format"),
-                datetime_format=plugin_output_config.get("datetime_format"),
-            )
-            if not plugin_output_config.get("header_styling", True):
-                excel.ExcelFormatter.header_style = None
+            with self._excel_writer_create_lock:
+                if not hasattr(self, '_excel_writer'):
+                    self._excel_writer = pd.ExcelWriter(
+                        plugin_output_config["file"],
+                        mode=plugin_output_config.get("mode", "w"),
+                        engine=plugin_output_config.get("engine", "xlsxwriter"),
+                        engine_kwargs=plugin_output_config.get("engine_kwargs", {}),
+                        date_format=plugin_output_config.get("date_format"),
+                        datetime_format=plugin_output_config.get("datetime_format"),
+                    )
+                    if not plugin_output_config.get("header_styling", True):
+                        excel.ExcelFormatter.header_style = None
 
         target_output_config = {
             **plugin_output_config,
