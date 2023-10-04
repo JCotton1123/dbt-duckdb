@@ -73,16 +73,30 @@ class Plugin(BasePlugin):
             target_output_config["sheet_name"] = target_config.relation.identifier[0:31]
 
         df = pd_utils.target_to_df(target_config)
-        df.to_excel(
-            self._excel_writer,
-            sheet_name=target_output_config["sheet_name"],
-            na_rep=target_output_config.get("na_rep", ""),
-            float_format=target_output_config.get("float_format", None),
-            header=target_output_config.get("header", True),
-            index=target_output_config.get("index", True),
-            merge_cells=target_output_config.get("merge_cells", True),
-            inf_rep=target_output_config.get("inf_rep", "inf"),
-        )
+        try:
+            df.to_excel(
+                self._excel_writer,
+                sheet_name=target_output_config["sheet_name"],
+                na_rep=target_output_config.get("na_rep", ""),
+                float_format=target_output_config.get("float_format", None),
+                header=target_output_config.get("header", True),
+                index=target_output_config.get("index", True),
+                merge_cells=target_output_config.get("merge_cells", True),
+                inf_rep=target_output_config.get("inf_rep", "inf"),
+            )
+        except ValueError as ve:
+            # Catches errors resembling the below & logs an appropriate message
+            # ValueError('This sheet is too large! Your sheet size is: 1100000, 1 Max sheet size is: 1048576, 16384')
+            if str(ve).startswith('This sheet is too large') and target_output_config["ignore_sheet_too_large"]:
+                pd.DataFrame([
+                    {'Error': target_output_config.get("ignore_sheet_too_large_error", str(ve))}
+                ]).to_excel(
+                    self._excel_writer,
+                    sheet_name=target_output_config["sheet_name"],
+                    index=False
+                )
+            else:
+                raise ve
 
     def __del__(self):
         if hasattr(self, "_excel_writer"):
