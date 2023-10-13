@@ -73,6 +73,8 @@ class Plugin(BasePlugin):
             target_output_config["sheet_name"] = target_config.relation.identifier[0:31]
 
         df = pd_utils.target_to_df(target_config)
+        if target_output_config.get("skip_empty_sheet", False) and df.shape[0] == 0:
+            return
         try:
             df.to_excel(
                 self._excel_writer,
